@@ -1,27 +1,18 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 app = FastAPI()
 
-class Msg(BaseModel):
-    msg: str
+class Message(BaseModel):
+    message: str
 
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2', pad_token_id=tokenizer.eos_token_id)
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World. Welcome to FastAPI!"}
-
-
-@app.get("/path")
-async def demo_get():
-    return {"message": "This is /path endpoint, use a post request to transform the text to uppercase"}
-
-
-@app.post("/path")
-async def demo_post(inp: Msg):
-    return {"message": inp.msg.upper()}
-
-
-@app.get("/path/{path_id}")
-async def demo_get_path_id(path_id: int):
-    return {"message": f"This is /path/{path_id} endpoint, use post request to retrieve result"}
+@app.post('/chatbot')
+def chatbot(message: Message):
+    input_ids = tokenizer.encode(message.message, return_tensors='pt')
+    output = model.generate(input_ids, max_length=1000, do_sample=True)
+    response = tokenizer.decode(output[0], skip_special_tokens=True)
+    return {'response': response}
